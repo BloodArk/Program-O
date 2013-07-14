@@ -319,8 +319,24 @@
       $convoArr['conversation']['debugmode'] = $row['debugmode'];
       $convoArr['conversation']['save_state'] = $row['save_state'];
       $convoArr['conversation']['default_aiml_pattern'] = $row['default_aiml_pattern'];
-      $convoArr['conversation']['bot_parent_id'] = $row['bot_parent_id'];
+      $convoArr['conversation']['bot_parent_ids'] = NULL;
       $error_response = $row['error_response'];
+
+      $sql = "SELECT * FROM `$dbn`.`bot_groups` WHERE child_bot_id = '" . $convoArr['conversation']['bot_id'] . "'";
+      runDebug(__FILE__, __FUNCTION__, __LINE__, "load bot config SQL: $sql", 3);
+      if (($result = mysql_query($sql, $con)) === false) throw new Exception('You have a SQL error on line ' . __LINE__ . ' of ' . __FILE__ . '. Error message is: ' . mysql_error() . ".<br />\nSQL = $sql<br />\n");
+      if (mysql_num_rows($result) > 0) {
+        runDebug(__FILE__, __FUNCTION__, __LINE__, 'Loading bot parents from the database.', 4);
+        while($row = mysql_fetch_assoc($result)){
+          $parentArr[$row['parent_bot_id']]=$row['priority'];
+        }
+
+        $convoArr['conversation']['bot_parent_ids'] = $parentArr;
+      }
+
+
+
+
     }
     else
     {
@@ -332,7 +348,7 @@
       $convoArr['conversation']['debugmode'] = $debug_mode;
       $convoArr['conversation']['save_state'] = $save_state;
       $convoArr['conversation']['default_aiml_pattern'] = $pattern;
-      $convoArr['conversation']['bot_parent_id'] = 0;
+      $convoArr['conversation']['bot_parent_ids'] = NULL;
     }
     mysql_free_result($result);
     //if return format is not html overide the debug type

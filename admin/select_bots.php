@@ -9,6 +9,7 @@
 // select_bots.php
 
 $selectBot ='';
+
 $post_vars = filter_input_array(INPUT_POST);
 
 if((isset($post_vars['action']))&&($post_vars['action']=="update")) {
@@ -47,19 +48,19 @@ else {
     $mainContent   = $selectBot;
     $mainTitle     = 'Choose/Edit a Bot';
 
-function getBotParentList($current_parent,$dbConn) {
+function getBotParentList($current_bot_parents,$current_bot,$dbConn) {
     //db globals
   $dbConn = db_open();
   //get active bots from the db
-  if(empty($current_parent)) $current_parent = 0;
-  $sql = "SELECT * FROM `bots` where bot_active = '1'";
-  if (($result = mysql_query($sql, $dbConn)) === false) throw new Exception('You have a SQL error on line '. __LINE__ . ' of ' . __FILE__ . '. Error message is: ' . mysql_error() . '.');;
 
-  $options = '                  <option value="0"[noBot]>No Parent Bot</option>';
+  $sql = "SELECT * FROM `bots` ORDER BY bot_name";
+  if (($result = mysql_query($sql, $dbConn)) === false) throw new Exception('You have a SQL error '.$sql.' on line '. __LINE__ . ' of ' . __FILE__ . '. Error message is: ' . mysql_error() . '.');;
+
+  $options = '                  <option value="0">No Parent Bot</option>';
 
   while($row = mysql_fetch_assoc($result)) {
-    if ($row['bot_id'] == 0) $options = str_replace('[noBot]', 'selected="selected"', $options);
-    if($current_parent==$row['bot_id']) {
+    if ($row['bot_id'] == 0) $options = str_replace('[noBot]', '', $options);
+    if(($current_bot_parents!=NULL) && (in_array($row['bot_id'], array_keys($current_bot_parents)))) {
       $sel = "selected=\"selected\"";
     }
     else {
@@ -67,7 +68,7 @@ function getBotParentList($current_parent,$dbConn) {
     }
     $options .= '                  <option value="'.$row['bot_id'].'" '.$sel.'>'.$row['bot_name'].'</option>';
   }
-  $options = str_replace('[noBot]', 'selected="selected"', $options);
+  //$options = str_replace('[noBot]', 'selected="selected"', $options);
 
   return $options;
 }
@@ -109,7 +110,7 @@ function getSelectedBot() {
   {
     #$bot_id = $_SESSION['poadmin']['bot_id'];
     //get data for all of the bots from the db
-    $sql = "SELECT * FROM `bots` where bot_id = '$bot_id';";
+    $sql = "SELECT * FROM `bots` WHERE bot_id = '$bot_id';";
     if (($result = mysql_query($sql, $dbConn)) === false) throw new Exception('You have a SQL error on line '. __LINE__ . ' of ' . __FILE__ . '. Error message is: ' . mysql_error() . '.');
     while($row = mysql_fetch_assoc($result)) {
       save_file(_LOG_PATH_ . 'bot_row.txt', print_r($row, true));
@@ -176,11 +177,21 @@ function getSelectedBot() {
       }
       $action = "update";
     }
+
+    //load parent bot groups
+    $bot_parent_ids = NULL;
+    $sql = "SELECT * FROM `bot_groups` WHERE `child_bot_id` = '$bot_id';";
+    if (($result = mysql_query($sql, $dbConn)) === false) throw new Exception('You have a SQL error on line ' . __LINE__ . ' of ' . __FILE__ . '. Error message is: ' . mysql_error() . '.');
+    while ($row = mysql_fetch_assoc($result)) {
+      $bot_parent_ids[$row['parent_bot_id']]=$row['priority'];
+    }
+
+
     mysql_close($dbConn);
   }
   else {
     $bot_id = '';
-    $bot_parent_id = 0;
+    $bot_parent_ids = NULL;
     $bot_name = '';
     $bot_desc = '';
     $bot_active = '';
@@ -196,7 +207,7 @@ function getSelectedBot() {
     $bot_debugmode = '';
   }
   $unknown_user = $bot_unknown_user;
-  $parent_options = getBotParentList($bot_parent_id,$dbConn);
+  $parent_options = getBotParentList($bot_parent_ids,$bot_id,$dbConn);
   $searches = array(
     '[bot_id]','[bot_name]','[bot_desc]','[parent_options]','[sel_yes]','[sel_no]',
     '[sel_html]','[sel_xml]','[sel_json]','[sel_session]','[sel_db]','[sel_fyes]',
@@ -219,10 +230,41 @@ function updateBotSelection() {
   $dbConn = db_open();
   $sql = '';
   $msg = '';
+  $updateStart = 0;
+
+
   foreach($post_vars as $key => $value) {
     if(($key!="bot_id")||($key!="action")) {
-      $value = mysql_real_escape_string(trim(stripslashes($value)));
-      if(($key != "bot_id")&&($key != "action")&&($value!='')) {
+      if ($key != "parent_bot_ids"){
+        $value = mysql_real_escape_string(trim(stripslashes($value)));
+      }
+
+
+
+      if ($key == "bot_parent_ids") {
+
+        if($updateStart == 0){
+        $updateStart = 1;
+        $sql = "DELETE FROM `bot_groups` WHERE `child_bot_id` = '" . $post_vars['bot_id'] . "' ";
+
+          if (($result = mysql_query($sql, $dbConn)) === false) throw new Exception('You have a SQL '. $sql.' error on line ' . __LINE__ . ' of ' . __FILE__ . '. Error message is: ' . mysql_error() . '.');
+        }
+
+
+
+        foreach($post_vars['bot_parent_ids'] as  $parent_id_value){
+
+        $sql = "INSERT INTO `bot_groups` VALUES (NULL, " . $post_vars['bot_id'] . ", $parent_id_value, 1);";
+
+        if (($result = mysql_query($sql, $dbConn)) === false) throw new Exception('You have a SQL error on line ' . __LINE__ . ' of ' . __FILE__ . '. Error message is: ' . mysql_error() . '.');
+        if (!$result) {
+          $msg = "Error updating bot details. See the <a href=\"$logFile\">error log</a> for details.<br />";
+          trigger_error("There was a problem adding '$key' to the database. The value was '$value'.");
+          break;
+        }
+
+        }
+      } elseif(($key != "bot_id")&&($key != "action")&&($value!='')) {
         $sql = "UPDATE `bots` SET `$key` ='$value' where `bot_id` = '".$post_vars['bot_id']."' limit 1; ";
         if (($result = mysql_query($sql, $dbConn)) === false) throw new Exception('You have a SQL error on line '. __LINE__ . ' of ' . __FILE__ . '. Error message is: ' . mysql_error() . '.');
         if(!$result) {
@@ -275,14 +317,22 @@ function addBot() {
   }
   $dbConn = db_open();
   $sql = <<<endSQL
-INSERT INTO `bots`(`bot_id`, `bot_name`, `bot_desc`, `bot_active`, `bot_parent_id`, `format`, `save_state`, `conversation_lines`, `remember_up_to`, `debugemail`, `debugshow`, `debugmode`, `default_aiml_pattern`, `error_response`)
-VALUES (NULL,'$bot_name','$bot_desc','$bot_active','$bot_parent_id','$format','$save_state','$conversation_lines','$remember_up_to','$debugemail','$debugshow','$debugmode','$aiml_pattern','$error_response');
+INSERT INTO `bots`(`bot_id`, `bot_name`, `bot_desc`, `bot_active`, `format`, `save_state`, `conversation_lines`, `remember_up_to`, `debugemail`, `debugshow`, `debugmode`, `default_aiml_pattern`, `error_response`)
+VALUES (NULL,'$bot_name','$bot_desc','$bot_active','$format','$save_state','$conversation_lines','$remember_up_to','$debugemail','$debugshow','$debugmode','$aiml_pattern','$error_response');
 endSQL;
   if (($result = mysql_query($sql, $dbConn)) === false) throw new Exception('You have a SQL error on line '. __LINE__ . ' of ' . __FILE__ . '. Error message is: ' . mysql_error() . '.');
 
-  if($result) {
-    $msg = "$bot_name Bot details added, please dont forget to create the bot personality and add the aiml.";
 
+
+  if($result) {
+    $bot_id = mysql_insert_id($dbConn);
+    foreach ($post_vars['bot_parent_ids'] as $parent_id_value) {
+      $sql = <<<endSQL
+INSERT INTO `bot_groups` VALUES (NULL, $bot_id, $parent_id_value, 1);
+endSQL;
+      if (($res = mysql_query($sql, $dbConn)) === false) throw new Exception('You have a SQL '. $sql.' error on line ' . __LINE__ . ' of ' . __FILE__ . '. Error message is: ' . mysql_error() . '.');
+    }
+    $msg = "$bot_name Bot details added, please dont forget to create the bot personality and add the aiml.";
   }
   else {
     $msg = "$bot_name Bot details could not be added.";

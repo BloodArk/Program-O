@@ -16,7 +16,6 @@ CREATE TABLE IF NOT EXISTS `bots` (
   bot_name varchar(255) NOT NULL,
   bot_desc varchar(255) NOT NULL,
   bot_active int(11) NOT NULL DEFAULT '1',
-  bot_parent_id int(11) NOT NULL DEFAULT '0',
   format varchar(10) NOT NULL DEFAULT 'html',
   save_state enum('session','database') NOT NULL DEFAULT 'session',
   conversation_lines int(11) NOT NULL DEFAULT '7',
@@ -28,6 +27,14 @@ CREATE TABLE IF NOT EXISTS `bots` (
   default_aiml_pattern varchar(255) NOT NULL DEFAULT 'RANDOM PICKUP LINE',
   unknown_user varchar(255) NOT NULL DEFAULT 'Seeker',
   PRIMARY KEY (bot_id)
+);
+
+CREATE TABLE IF NOT EXISTS `bot_groups` (
+  id int(11) NOT NULL AUTO_INCREMENT,
+  child_bot_id int(11) NOT NULL,
+  parent_bot_id int(11) NOT NULL,
+  priority int(11) NOT NULL,
+  PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS `aiml_userdefined` (

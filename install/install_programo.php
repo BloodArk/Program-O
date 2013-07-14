@@ -129,8 +129,8 @@ endPage;
     $result = mysql_query($sql, $conn) or upgrade($conn);
     mysql_free_result($result);
     $sql_template = "
-INSERT IGNORE INTO `bots` (`bot_id`, `bot_name`, `bot_desc`, `bot_active`, `bot_parent_id`, `format`, `save_state`, `conversation_lines`, `remember_up_to`, `debugemail`, `debugshow`, `debugmode`, `error_response`, `default_aiml_pattern`)
-VALUES ([default_bot_id], '[bot_name]', '[bot_desc]', '[bot_active]', '[bot_parent_id]', '[format]', '[save_state]',
+INSERT IGNORE INTO `bots` (`bot_id`, `bot_name`, `bot_desc`, `bot_active`, `format`, `save_state`, `conversation_lines`, `remember_up_to`, `debugemail`, `debugshow`, `debugmode`, `error_response`, `default_aiml_pattern`)
+VALUES ([default_bot_id], '[bot_name]', '[bot_desc]', '[bot_active]', '[format]', '[save_state]',
 '$conversation_lines', '$remember_up_to', '[debugemail]', '[debugshow]', '[debugmode]', '$error_response', '$pattern');";
     require_once (_LIB_PATH_ . 'error_functions.php');
     require_once (_LIB_PATH_ . 'db_functions.php');
@@ -139,7 +139,6 @@ VALUES ([default_bot_id], '[bot_name]', '[bot_desc]', '[bot_active]', '[bot_pare
     $sql = str_replace('[bot_name]', $myPostVars['bot_name'], $sql);
     $sql = str_replace('[bot_desc]', $myPostVars['bot_desc'], $sql);
     $sql = str_replace('[bot_active]', $myPostVars['bot_active'], $sql);
-    $sql = str_replace('[bot_parent_id]', 1, $sql);
     $sql = str_replace('[format]', $myPostVars['format'], $sql);
     // "Use PHP from DB setting
     // "Update PHP in DB setting

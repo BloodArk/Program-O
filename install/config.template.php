@@ -33,7 +33,7 @@
     define('_INC_PATH_',_BASE_DIR_.$path_separator);
     define('_ADMIN_PATH_',_BASE_DIR_.'admin'.$path_separator);
     define('_ADMIN_URL_',_BASE_URL_.'admin/');
-    define('_CAPTCHA_PATH_',_ADMIN_DIR_.'captcha-images'.$path_separator);
+    define('_CAPTCHA_PATH_',_ADMIN_PATH_.'captcha-images'.$path_separator);
     define('_BOTCORE_PATH_',_BASE_DIR_.'chatbot'.$path_separator.'core'.$path_separator);
     define('_LIB_PATH_',_BASE_DIR_.'library'.$path_separator);
     define('_LIB_URL_',_BASE_URL_.'library/');
@@ -75,11 +75,11 @@
     //------------------------------------------------------------------------
     // parent bot
     // the parent bot is used to find aiml matches if no match is found for the current bot
-    // in the database the bot_parent_id is the id of the bot to use
-    // if no parent bot is used this is set to zero
+    // in the database the bot_parent_ids an array of parent bots to use
+    // if no parent bot is used this is set to NULL
     // the actual parent bot is set later on in program o there is no need to edit this value
     //------------------------------------------------------------------------
-    $bot_parent_id = 1;
+    $bot_parent_ids = NULL;
 
 //------------------------------------------------------------------------
 // Set the default bot configuration And the database settings

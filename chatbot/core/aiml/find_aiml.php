@@ -212,14 +212,14 @@
   * function score_matches()
   * This function takes all the relevant sql results and scores them
   * to find the most likely match with the aiml
-  * @param int $bot_parent_id - the id of the parent bot
+  * @param int $bot_parent_ids - array of bots
   * @param array $allrows - all the results
   * @param string $lookingfor - the user input
   * @param string $current_thatpattern - the current that pattern
   * @param string $current_topic - the current topic
   * @return array allrows - the SCORED results
   **/
-  function score_matches($convoArr, $bot_parent_id, $allrows, $lookingfor, $current_thatpattern, $current_topic, $default_pattern)
+  function score_matches($convoArr, $bot_parent_ids, $allrows, $lookingfor, $current_thatpattern, $current_topic, $default_pattern)
   {
     global $common_words_array;
     runDebug(__FILE__, __FUNCTION__, __LINE__, "Scoring the matches. Topic = $current_topic", 4);
@@ -281,7 +281,7 @@
       $allrows[$all]['track_score'] = '';
       //if the aiml is from the actual bot and not the base bot
       //any match in the current bot is better than the base bot
-      if (($bot_parent_id != 0) && ($allrows[$all]['bot_id'] != $bot_parent_id))
+      if (($bot_parent_ids != NULL) && (in_array($allrows[$all]['bot_id'], $bot_parent_ids)))
       {
         $allrows[$all]['score'] += $this_bot_match;
         $allrows[$all]['track_score'] .= "a";
@@ -631,9 +631,16 @@
     $bot_id = $convoArr['conversation']['bot_id'];
     $user_id = $convoArr['conversation']['user_id'];
     $lookingfor = mysql_real_escape_string($convoArr['aiml']['lookingfor']);
+    $bot_parent_ids = $convoArr['conversation']['bot_parent_ids'];
+    if ($bot_parent_ids != NULL) {
+      $sql_bot_select = " (bot_id = '$bot_id' OR bot_id IN (" . implode(array_keys($bot_parent_ids), ",") . ") ) ";
+    } else {
+      $sql_bot_select = " bot_id = '$bot_id' ";
+    }
+
     //build sql
     $sql = "SELECT * FROM `$dbn`.`aiml_userdefined` WHERE
-		`bot_id` = '$bot_id' AND
+		$sql_bot_select AND
 		(`user_id` = '$user_id' OR `user_id` = '-1') AND
 		`pattern` = '$lookingfor'";
     runDebug(__FILE__, __FUNCTION__, __LINE__, "User defined SQL: $sql", 3);
@@ -671,7 +678,7 @@
     $current_thatpattern = (isset($convoArr['that'][1][1])) ? $convoArr['that'][1][1] : '';
     $current_topic = get_topic($convoArr);
     $aiml_pattern = $convoArr['conversation']['default_aiml_pattern'];
-    $bot_parent_id = $convoArr['conversation']['bot_parent_id'];
+    $bot_parent_ids = $convoArr['conversation']['bot_parent_id'];
     $sendConvoArr = $convoArr;
     //check if match in user defined aiml
     $allrows = find_userdefined_aiml($convoArr);
@@ -683,7 +690,7 @@
       //unset all irrelvant matches
       $allrows = unset_all_bad_pattern_matches($allrows, $lookingfor, $current_thatpattern, $current_topic, $aiml_pattern);
       //score the relevant matches
-      $allrows = score_matches($convoArr, $bot_parent_id, $allrows, $lookingfor, $current_thatpattern, $current_topic, $aiml_pattern);
+      $allrows = score_matches($convoArr, $bot_parent_ids, $allrows, $lookingfor, $current_thatpattern, $current_topic, $aiml_pattern);
       //get the highest
       $allrows = get_highest_score_rows($allrows, $lookingfor);
       //READY FOR v2.5 do not uncomment will not work
@@ -743,7 +750,7 @@
     $i = 0;
     //TODO convert to get_it
     $bot_id = $convoArr['conversation']['bot_id'];
-    $bot_parent_id = $convoArr['conversation']['bot_parent_id'];
+    $bot_parent_ids = $convoArr['conversation']['bot_parent_ids'];
     $aiml_pattern = $convoArr['conversation']['default_aiml_pattern'];
     #$lookingfor = get_convo_var($convoArr,"aiml","lookingfor");
     $lookingfor = mysql_real_escape_string($convoArr['aiml']['lookingfor']);
@@ -771,9 +778,9 @@
     }
     //get the word count
     $word_count = wordsCount_inSentence($lookingfor);
-    if ($bot_parent_id != 0)
+    if ($bot_parent_ids != NULL)
     {
-      $sql_bot_select = " (bot_id = '$bot_id' OR bot_id = '$bot_parent_id') ";
+      $sql_bot_select = " (bot_id = '$bot_id' OR bot_id IN (".implode(array_keys($bot_parent_ids),",").") ) ";
     }
     else
     {
